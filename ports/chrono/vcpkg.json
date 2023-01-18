@@ -1,0 +1,16 @@
+{
+    "name": "chrono",
+    "version": "8.0.0",
+    "description": "High-performance C++ library for multiphysics and multibody dynamics simulations",
+    "homepage": "https://github.com/projectchrono/chrono",
+    "dependencies": [
+        {
+            "name": "eigen3",
+            "version>=": "3.4.0"
+        },
+        {
+            "name": "vcpkg-cmake",
+            "host": true
+        }
+    ]
+}
