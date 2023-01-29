@@ -6,6 +6,8 @@ vcpkg_from_github(
   HEAD_REF release/8.0
   PATCHES 
     "use-current-cmake-dir.patch"
+    "disable-chpf-installing.patch"
+    "change-vcpkg-install-option.patch"
 )
 
 vcpkg_cmake_configure(
@@ -14,9 +16,17 @@ vcpkg_cmake_configure(
 
 vcpkg_cmake_install()
 
-file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
-
 file(
   INSTALL "${SOURCE_PATH}/LICENSE"
   DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}"
-  RENAME copyright)
+  RENAME copyright
+)
+
+file(
+  INSTALL "${CURRENT_PACKAGES_DIR}/cmake/ChronoConfig.cmake"
+  DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}"
+)
+
+file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
+file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/cmake")
+file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/cmake")
