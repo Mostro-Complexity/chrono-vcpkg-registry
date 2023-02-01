@@ -1,5 +1,5 @@
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index 4e2250319..789914a86 100644
+index d75ce1055..38e214db3 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
 @@ -8,7 +8,7 @@
@@ -11,6 +11,15 @@ index 4e2250319..789914a86 100644
  option(BUILD_BENCHMARKING "Build benchmark tests" OFF)
  
  #-----------------------------------------------------------------------------
+@@ -250,7 +250,7 @@ endif()
+ #-----------------------------------------------------------------------------
+ 
+ message(STATUS "Searching for Eigen3...")
+-find_package(Eigen3 3.3.0)
++find_package(Eigen3 3.4.0)
+ if(EIGEN3_FOUND)
+   message(STATUS "  Eigen3 version: ${EIGEN3_VERSION}")
+   message(STATUS "  Eigen3 include directory: ${EIGEN3_INCLUDE_DIR}")
 @@ -277,15 +277,15 @@ endif()
  # Fix for hang-up in compilation with 32 bit on MSVC in Release configuration with EIGEN3.
  # Note: this flag may DECREASE the overall calculation performance in approx. 10%
@@ -33,3 +42,14 @@ index 4e2250319..789914a86 100644
  	endif()
  endif()
  #-----------------------------------------------------------------------------
+@@ -723,10 +723,6 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/src/chrono_thirdparty/tinyobjloader
+ install(DIRECTORY ${CMAKE_SOURCE_DIR}/src/chrono_thirdparty/yafel
+         DESTINATION include/chrono_thirdparty
+         FILES_MATCHING PATTERN "*.h" PATTERN "*.cuh" PATTERN "*.hpp" PATTERN "*.inl")
+-
+-install(DIRECTORY ${CMAKE_SOURCE_DIR}/src/chrono_thirdparty/chpf
+-	      DESTINATION include/chrono_thirdparty
+-	      FILES_MATCHING PATTERN "*.hpp")
+         
+ install(DIRECTORY ${CMAKE_SOURCE_DIR}/src/chrono_thirdparty/stb
+         DESTINATION include/chrono_thirdparty
