@@ -8,6 +8,7 @@ vcpkg_from_github(
     "use-current-cmake-dir.patch"
     "disable-chpf-installing.patch"
     "change-vcpkg-install-option.patch"
+    "enable-all-modules.patch"
 )
 
 vcpkg_cmake_configure(
