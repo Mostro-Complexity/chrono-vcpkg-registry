@@ -1,5 +1,5 @@
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index d75ce1055..38e214db3 100644
+index 4e2250319..38e214db3 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
 @@ -8,7 +8,7 @@
@@ -42,14 +42,3 @@ index d75ce1055..38e214db3 100644
  	endif()
  endif()
  #-----------------------------------------------------------------------------
-@@ -723,10 +723,6 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/src/chrono_thirdparty/tinyobjloader
- install(DIRECTORY ${CMAKE_SOURCE_DIR}/src/chrono_thirdparty/yafel
-         DESTINATION include/chrono_thirdparty
-         FILES_MATCHING PATTERN "*.h" PATTERN "*.cuh" PATTERN "*.hpp" PATTERN "*.inl")
--
--install(DIRECTORY ${CMAKE_SOURCE_DIR}/src/chrono_thirdparty/chpf
--	      DESTINATION include/chrono_thirdparty
--	      FILES_MATCHING PATTERN "*.hpp")
-         
- install(DIRECTORY ${CMAKE_SOURCE_DIR}/src/chrono_thirdparty/stb
-         DESTINATION include/chrono_thirdparty

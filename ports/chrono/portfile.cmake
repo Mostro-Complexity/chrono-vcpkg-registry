@@ -8,11 +8,15 @@ vcpkg_from_github(
     "use-current-cmake-dir.patch"
     "disable-chpf-installing.patch"
     "change-vcpkg-install-option.patch"
-    "enable-all-modules.patch"
+    "use-global-shared_libs.patch"
 )
+
+string(COMPARE EQUAL "${VCPKG_LIBRARY_LINKAGE}" "dynamic" USE_SHARED_LIBS)
 
 vcpkg_cmake_configure(
   SOURCE_PATH "${SOURCE_PATH}"
+  OPTIONS
+    -DBUILD_SHARED_LIBS=${USE_SHARED_LIBS}
 )
 
 vcpkg_cmake_install()

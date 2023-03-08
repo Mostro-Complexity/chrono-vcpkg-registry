@@ -1,0 +1,540 @@
+diff --git a/.gitignore b/.gitignore
+index 61f019c59..b1b46f290 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -105,4 +105,6 @@ refman.pdf
+ src/chrono_granular/DoxyGenDocs/
+ 
+ third_party
+-out
+\ No newline at end of file
++out
++
++vcpkg_binary_source
+\ No newline at end of file
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 32319f2de..b2ca20a34 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -68,7 +68,6 @@ message(STATUS "The target processor is ${CMAKE_SYSTEM_PROCESSOR}")
+ #-----------------------------------------------------------------------------
+ # Location of additional CMake scripts
+ #-----------------------------------------------------------------------------
+-
+ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/")
+ include(GetGitRevisionDescription)
+ get_git_head_revision(GIT_REFSPEC VCS_REVISION)
+diff --git a/cmake/ChronoConfig.cmake.in b/cmake/ChronoConfig.cmake.in
+index 67255315c..ba168eaff 100644
+--- a/cmake/ChronoConfig.cmake.in
++++ b/cmake/ChronoConfig.cmake.in
+@@ -74,10 +74,10 @@ string(REGEX REPLACE "[ \t]+" ";" CHRONO_C_FLAGS "@CH_C_FLAGS@")
+ string(REGEX REPLACE "[ \t]+" ";" CHRONO_LINKER_FLAGS "@CH_LINKERFLAG_EXE@")
+ 
+ if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+-  list(APPEND CHRONO_LINKER_FLAGS "-L@CH_BINARY_DIR@/lib")
++  list(APPEND CHRONO_LINKER_FLAGS "-L@CH_BINARY_RELATIVE_DIR@/lib")
+ endif()
+ 
+-list(APPEND CHRONO_INCLUDE_DIRS "@CH_INCLUDE_DIRS@")
++list(APPEND CHRONO_INCLUDE_DIRS "@CH_INCLUDE_RELATIVE_DIRS@")
+ list(APPEND CHRONO_LIBRARIES "@OPENMP_LIBRARIES@")
+ list(APPEND CHRONO_LIBRARIES "@CH_SOCKET_LIB@")
+ list(PREPEND CHRONO_LIB_NAMES "ChronoEngine")
+@@ -86,10 +86,10 @@ list(APPEND CHRONO_DLL_NAMES "ChronoEngine.dll")
+ list(PREPEND CHRONO_LIB_NAMES "ChronoModels_robot")
+ list(APPEND CHRONO_DLL_NAMES "ChronoModels_robot.dll")
+ 
+-set(CHRONO_DATA_DIR "@CH_DATA_DIR@")
+-set(CHRONO_VEHICLE_DATA_DIR "@CH_DATA_DIR@vehicle/")
+-set(CHRONO_FSI_DATA_DIR "@CH_DATA_DIR@fsi/")
+-set(SYNCHRONO_DATA_DIR "@CH_DATA_DIR@synchrono/")
++set(CHRONO_DATA_DIR "@CH_DATA_RELATIVE_DIR@/")
++set(CHRONO_VEHICLE_DATA_DIR "@CH_DATA_RELATIVE_DIR@/vehicle/")
++set(CHRONO_FSI_DATA_DIR "@CH_DATA_RELATIVE_DIR@/fsi/")
++set(SYNCHRONO_DATA_DIR "@CH_DATA_RELATIVE_DIR@/synchrono/")
+ 
+ set(CHRONO_SSE_FOUND "@SSE_FOUND@")
+ set(CHRONO_AVX_FOUND "@AVX_FOUND@")
+@@ -342,7 +342,6 @@ foreach(COMPONENT ${Chrono_FIND_COMPONENTS})
+ 
+       list(APPEND CHRONO_INCLUDE_DIRS "@SYN_INCLUDES@")
+       list(APPEND CHRONO_INCLUDE_DIRS "@MPI_CXX_INCLUDE_PATH@")
+-      list(APPEND CHRONO_INCLUDE_DIRS "@CH_THIRDPARTY_INCLUDE_DIR@/flatbuffers/include")
+       list(APPEND CHRONO_LIBRARIES "@MPI_CXX_LIBRARIES@")
+       list(APPEND CHRONO_LIBRARIES "@SYN_LIBRARIES@")
+ 
+@@ -439,56 +438,12 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
+     set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY NEVER)
+ endif()
+ 
+-foreach(lib ${CHRONO_LIB_NAMES})
+-  set(onelib "${lib}-NOTFOUND")
+-  find_library(onelib ${lib}
+-    PATHS "@CH_BINARY_DIR@/lib"
+-    PATH_SUFFIXES "Release"
+-    NO_DEFAULT_PATH
+-  )
+-  if(NOT onelib)
+-    message("Library '${lib}' in package Chrono is not installed properly")
+-  else()
+-    list(APPEND CHRONO_LIBRARIES "${onelib}")
+-  endif()
+-endforeach()
+-
+ if(${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
+     set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+ endif()
+ 
+ mark_as_advanced(FORCE onelib)
+ 
+-#-------------------------------------------------------------------------------
+-# Loop over list of Chrono DLL names and find the actual DLLs
+-#-------------------------------------------------------------------------------
+-
+-if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+-
+-  foreach(dll ${CHRONO_DLL_NAMES})
+-    set(onedll "${dll}-NOTFOUND")
+-    find_file(onedll ${dll}
+-      PATHS "@CH_BINARY_DIR@/bin"
+-      PATH_SUFFIXES "Release"
+-      NO_DEFAULT_PATH
+-    )
+-    if(NOT onedll)
+-      message("DLL '${dll}' in package Chrono is not installed properly")
+-    else()
+-      list(APPEND CHRONO_DLLS "${onedll}")
+-    endif()
+-  endforeach()
+-
+-  mark_as_advanced(FORCE onedll)
+-
+-else()
+-
+-  # If not on Windows, clear the lists of DLLs
+-  set(CHRONO_DLL_NAMES "")
+-  set(CHRONO_DLLS "")
+-
+-endif()
+-
+ #-------------------------------------------------------------------------------
+ # Report the exported variables
+ #-------------------------------------------------------------------------------
+diff --git a/contrib/opencrg-support/CMakeLists.txt b/contrib/opencrg-support/CMakeLists.txt
+index 372d2b6a4..424c7d805 100644
+--- a/contrib/opencrg-support/CMakeLists.txt
++++ b/contrib/opencrg-support/CMakeLists.txt
+@@ -28,7 +28,7 @@ if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+ 	ADD_COMPILE_OPTIONS(-fPIC)
+ endif()
+ 
+-ADD_LIBRARY(OpenCRG${MY_POSTFIX} STATIC ${LIBSOURCES})
++ADD_LIBRARY(OpenCRG${MY_POSTFIX} ${LIBSOURCES})
+ 
+ INSTALL(FILES baselib/inc/crgBaseLib.h
+         DESTINATION include
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 38e214db3..436ea3ee2 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -10,6 +10,7 @@
+ 
+ option(BUILD_DEMOS "Build demo programs" OFF)
+ option(BUILD_BENCHMARKING "Build benchmark tests" OFF)
++option(BUILD_SHARED_LIBS "Build shared libs" ON)
+ 
+ #-----------------------------------------------------------------------------
+ # Search prefixes specified by <PackageName>_ROOT
+@@ -279,14 +280,15 @@ endif()
+ # For more information, see: https://gitlab.com/libeigen/eigen/-/issues/2379
+ set(CMAKE_FLAGS_EIGEN3_INLINE CACHE BOOL "Build with 32 bit on MSVC in release configuration" $<AND:$<CONFIG:Release>,$<PLATFORM_ID:x86>>)
+ mark_as_advanced(FORCE CMAKE_FLAGS_EIGEN3_INLINE)
++message(STATUS "  Configuration system name is ${CMAKE_SYSTEM_NAME}")
+ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+-	if(MSVC AND ("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32") AND CMAKE_FLAGS_EIGEN3_INLINE)
++	if(MSVC AND CMAKE_FLAGS_EIGEN3_INLINE)
+     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /DEIGEN_STRONG_INLINE=inline")
+     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /DEIGEN_STRONG_INLINE=inline")
+     message(STATUS "Enabling inline flag for EIGEN hang-up issues with 32 bit on MSVC in release configuration")
+     message(STATUS " Compiler flag: -DEIGEN_STRONG_INLINE=inline")
+     message(STATUS " Note: this flag may DECREASE the overall calculation performance in approx. 10%")
+-	endif()
++  endif()
+ endif()
+ #-----------------------------------------------------------------------------
+ # MPI support
+@@ -924,19 +926,25 @@ install(FILES "${PROJECT_BINARY_DIR}/chrono/ChVersion.h"
+ 
+ # For the BUILD tree
+ set(CH_THIRDPARTY_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/src/chrono_thirdparty")
+-set(CH_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/src")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${PROJECT_SOURCE_DIR}/src/chrono")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${PROJECT_SOURCE_DIR}/src/chrono/collision/bullet")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${PROJECT_SOURCE_DIR}/src/chrono/collision/gimpact")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${PROJECT_SOURCE_DIR}/src/chrono_thirdparty/HACD")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${PROJECT_SOURCE_DIR}/src/chrono_thirdparty/HACDv2")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${PROJECT_BINARY_DIR}")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${EIGEN3_INCLUDE_DIR}")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${OPENMP_INCLUDE_DIR}")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${THRUST_INCLUDE_DIR}")
++list(APPEND CH_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/src")
++list(APPEND CH_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/src/chrono")
++list(APPEND CH_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/src/chrono/collision/bullet")
++list(APPEND CH_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/src/chrono/collision/gimpact")
++list(APPEND CH_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/src/chrono_thirdparty/HACD")
++list(APPEND CH_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/src/chrono_thirdparty/HACDv2")
++list(APPEND CH_INCLUDE_DIRS "${PROJECT_BINARY_DIR}")
++list(APPEND CH_INCLUDE_DIRS "${EIGEN3_INCLUDE_DIR}")
++list(APPEND CH_INCLUDE_DIRS "${OPENMP_INCLUDE_DIR}")
++list(APPEND CH_INCLUDE_DIRS "${THRUST_INCLUDE_DIR}")
++foreach(CH_INCLUDE_DIR ${CH_INCLUDE_DIRS})
++  file(RELATIVE_PATH CH_INCLUDE_RELATIVE_DIR ${PROJECT_SOURCE_DIR} ${CH_INCLUDE_DIR})
++  set(CH_INCLUDE_RELATIVE_DIRS ${CH_INCLUDE_RELATIVE_DIRS} ${CH_INCLUDE_RELATIVE_DIR})
++endforeach()
+ 
+ set(CH_BINARY_DIR "${PROJECT_BINARY_DIR}")
++file(RELATIVE_PATH CH_BINARY_RELATIVE_DIR ${PROJECT_SOURCE_DIR} ${CH_BINARY_DIR})
+ set(CH_DATA_DIR "${PROJECT_SOURCE_DIR}/data/")
++file(RELATIVE_PATH CH_DATA_RELATIVE_DIR ${PROJECT_SOURCE_DIR} ${CH_DATA_DIR})
+ 
+ configure_file("${PROJECT_SOURCE_DIR}/cmake/ChronoConfig.cmake.in"
+                "${PROJECT_BINARY_DIR}/cmake/ChronoConfig.cmake"
+@@ -944,18 +952,24 @@ configure_file("${PROJECT_SOURCE_DIR}/cmake/ChronoConfig.cmake.in"
+ 
+ # For the INSTALL tree
+ set(CH_THIRDPARTY_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include/chrono_thirdparty")
+-set(CH_INCLUDE_DIRS "${CMAKE_INSTALL_PREFIX}/include")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${CMAKE_INSTALL_PREFIX}/include/chrono")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${CMAKE_INSTALL_PREFIX}/include/chrono/collision/bullet")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${CMAKE_INSTALL_PREFIX}/include/chrono/collision/gimpact")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${CMAKE_INSTALL_PREFIX}/include/chrono_thirdparty/HACD")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${CMAKE_INSTALL_PREFIX}/include/chrono_thirdparty/HACDv2")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${EIGEN3_INCLUDE_DIR}")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${OPENMP_INCLUDE_DIR}")
+-set(CH_INCLUDE_DIRS ${CH_INCLUDE_DIRS} "${THRUST_INCLUDE_DIR}")
++list(APPEND CH_INCLUDE_DIRS "${CMAKE_INSTALL_PREFIX}/include")
++list(APPEND CH_INCLUDE_DIRS "${CMAKE_INSTALL_PREFIX}/include/chrono")
++list(APPEND CH_INCLUDE_DIRS "${CMAKE_INSTALL_PREFIX}/include/chrono/collision/bullet")
++list(APPEND CH_INCLUDE_DIRS "${CMAKE_INSTALL_PREFIX}/include/chrono/collision/gimpact")
++list(APPEND CH_INCLUDE_DIRS "${CMAKE_INSTALL_PREFIX}/include/chrono_thirdparty/HACD")
++list(APPEND CH_INCLUDE_DIRS "${CMAKE_INSTALL_PREFIX}/include/chrono_thirdparty/HACDv2")
++list(APPEND CH_INCLUDE_DIRS "${EIGEN3_INCLUDE_DIR}")
++list(APPEND CH_INCLUDE_DIRS "${OPENMP_INCLUDE_DIR}")
++list(APPEND CH_INCLUDE_DIRS "${THRUST_INCLUDE_DIR}")
++foreach(CH_INCLUDE_DIR ${CH_INCLUDE_DIRS})
++  file(RELATIVE_PATH CH_INCLUDE_RELATIVE_DIR ${PROJECT_SOURCE_DIR} ${CH_INCLUDE_DIR})
++  set(CH_INCLUDE_RELATIVE_DIRS ${CH_INCLUDE_RELATIVE_DIRS} ${CH_INCLUDE_RELATIVE_DIR})
++endforeach()
+ 
+ set(CH_BINARY_DIR ${CMAKE_INSTALL_PREFIX})
++file(RELATIVE_PATH CH_BINARY_RELATIVE_DIR ${PROJECT_SOURCE_DIR} ${CH_BINARY_DIR})
+ set(CH_DATA_DIR "${CMAKE_INSTALL_PREFIX}/${CH_INSTALL_DATA}/")
++file(RELATIVE_PATH CH_DATA_RELATIVE_DIR ${PROJECT_SOURCE_DIR} ${CH_DATA_DIR})
+ 
+ configure_file("${PROJECT_SOURCE_DIR}/cmake/ChronoConfig.cmake.in"
+                "${PROJECT_BINARY_DIR}/cmake/ChronoConfig.cmake.install"
+diff --git a/src/chrono/CMakeLists.txt b/src/chrono/CMakeLists.txt
+index 88f970fca..7ad8cf02c 100644
+--- a/src/chrono/CMakeLists.txt
++++ b/src/chrono/CMakeLists.txt
+@@ -1403,7 +1403,7 @@ else()
+ endif()
+ 
+ # Add the ChronoEngine library to the project
+-add_library(ChronoEngine SHARED ${ChronoEngine_FILES})
++add_library(ChronoEngine ${ChronoEngine_FILES})
+ 
+ target_link_libraries(ChronoEngine ${OPENMP_LIBRARIES} ${CH_SOCKET_LIB})
+ if (UNIX)
+diff --git a/src/chrono_cascade/CMakeLists.txt b/src/chrono_cascade/CMakeLists.txt
+index 3d38c8707..a0f473a32 100644
+--- a/src/chrono_cascade/CMakeLists.txt
++++ b/src/chrono_cascade/CMakeLists.txt
+@@ -95,7 +95,7 @@ if(ENABLE_MODULE_IRRLICHT)
+     include_directories(${CH_IRRLICHTINC})
+ endif()
+ 
+-add_library(ChronoEngine_cascade SHARED 
++add_library(ChronoEngine_cascade 
+             ${ChronoEngine_CASCADE_SOURCES}
+             ${ChronoEngine_CASCADE_HEADERS}
+             ${ChronoEngine_CASCADE_HEADERS_IRRLICHT})
+diff --git a/src/chrono_cosimulation/CMakeLists.txt b/src/chrono_cosimulation/CMakeLists.txt
+index d2e900754..82fa212da 100644
+--- a/src/chrono_cosimulation/CMakeLists.txt
++++ b/src/chrono_cosimulation/CMakeLists.txt
+@@ -30,7 +30,7 @@ source_group("" FILES
+ 
+ # Add the COSIMULATION library
+ 
+-add_library(ChronoEngine_cosimulation SHARED
++add_library(ChronoEngine_cosimulation
+             ${ChronoEngine_COSIMULATION_SOURCES}
+             ${ChronoEngine_COSIMULATION_HEADERS})
+ 
+diff --git a/src/chrono_distributed/CMakeLists.txt b/src/chrono_distributed/CMakeLists.txt
+index a43a003f7..5ada303fa 100644
+--- a/src/chrono_distributed/CMakeLists.txt
++++ b/src/chrono_distributed/CMakeLists.txt
+@@ -122,7 +122,7 @@ SOURCE_GROUP(solver FILES ${ChronoEngine_distributed_SOLVER})
+ include_directories(${CH_MULTICORE_INCLUDES})
+ include_directories(${CH_DISTRIBUTED_INCLUDES})
+ 
+-ADD_LIBRARY(ChronoEngine_distributed SHARED
++ADD_LIBRARY(ChronoEngine_distributed
+ 			${ChronoEngine_distributed_BASE}
+ 			${ChronoEngine_distributed_PHYSICS}
+ 			${ChronoEngine_distributed_COLLISION}
+diff --git a/src/chrono_fsi/CMakeLists.txt b/src/chrono_fsi/CMakeLists.txt
+index 3e420c37b..d7da2fabc 100644
+--- a/src/chrono_fsi/CMakeLists.txt
++++ b/src/chrono_fsi/CMakeLists.txt
+@@ -175,7 +175,7 @@ source_group(utils FILES ${ChronoEngine_FSI_UTILS_FILES})
+ 
+ set(CXX_FLAGS ${CH_CXX_FLAGS})
+ 
+-cuda_add_library(ChronoEngine_fsi SHARED
++cuda_add_library(ChronoEngine_fsi
+     ${ChronoEngine_FSI_FILES}
+     ${ChronoEngine_FSI_PHYSICS_FILES}
+     ${ChronoEngine_FSI_MATH_FILES}
+diff --git a/src/chrono_gpu/CMakeLists.txt b/src/chrono_gpu/CMakeLists.txt
+index da1adaefd..a393b3f1c 100644
+--- a/src/chrono_gpu/CMakeLists.txt
++++ b/src/chrono_gpu/CMakeLists.txt
+@@ -148,7 +148,7 @@ source_group(utilities FILES ${ChronoEngine_GPU_VISUALIZATION})
+ # Add the ChronoEngine_gpu library
+ # ------------------------------------------------------------------------------
+ 
+-CUDA_ADD_LIBRARY(ChronoEngine_gpu SHARED
++CUDA_ADD_LIBRARY(ChronoEngine_gpu
+                  ${ChronoEngine_GPU_BASE}
+                  ${ChronoEngine_GPU_PHYSICS}
+                  ${ChronoEngine_GPU_CUDA}
+diff --git a/src/chrono_irrlicht/CMakeLists.txt b/src/chrono_irrlicht/CMakeLists.txt
+index acffe0cb6..374ff5ef4 100644
+--- a/src/chrono_irrlicht/CMakeLists.txt
++++ b/src/chrono_irrlicht/CMakeLists.txt
+@@ -129,7 +129,7 @@ if (ENABLE_MODULE_MODAL)
+     set(LIBRARIES ${LIBRARIES} ChronoEngine_modal)
+ endif()
+ 
+-ADD_LIBRARY(ChronoEngine_irrlicht SHARED
++ADD_LIBRARY(ChronoEngine_irrlicht
+   ${ChronoEngine_IRRLICHT_SOURCES}
+   ${ChronoEngine_IRRLICHT_HEADERS}
+ )
+diff --git a/src/chrono_matlab/CMakeLists.txt b/src/chrono_matlab/CMakeLists.txt
+index 1d840e876..86f6fc184 100644
+--- a/src/chrono_matlab/CMakeLists.txt
++++ b/src/chrono_matlab/CMakeLists.txt
+@@ -63,7 +63,7 @@ SET (CH_MATLABLIB "${CH_MATLABLIB}" PARENT_SCOPE )
+ 
+ INCLUDE_DIRECTORIES(${MATLAB_SDK_ROOT}/include)
+ 
+-ADD_LIBRARY(ChronoEngine_matlab SHARED 
++ADD_LIBRARY(ChronoEngine_matlab 
+             ${ChronoEngine_MATLAB_SOURCES}
+             ${ChronoEngine_MATLAB_HEADERS})
+             
+diff --git a/src/chrono_modal/CMakeLists.txt b/src/chrono_modal/CMakeLists.txt
+index 93dc348e2..670eb5216 100644
+--- a/src/chrono_modal/CMakeLists.txt
++++ b/src/chrono_modal/CMakeLists.txt
+@@ -56,7 +56,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /bigobj")
+ endif()
+ 
+-ADD_LIBRARY(ChronoEngine_modal SHARED 
++ADD_LIBRARY(ChronoEngine_modal 
+ 			${ChronoEngine_MODAL_SOURCES}
+ 			${ChronoEngine_MODAL_HEADERS})
+ 
+diff --git a/src/chrono_models/robot/CMakeLists.txt b/src/chrono_models/robot/CMakeLists.txt
+index 338214ea3..e26a40cd1 100644
+--- a/src/chrono_models/robot/CMakeLists.txt
++++ b/src/chrono_models/robot/CMakeLists.txt
+@@ -80,7 +80,7 @@ endif()
+ 
+ #-----------------------------------------------------------------------------
+ 
+-add_library(ChronoModels_robot SHARED 
++add_library(ChronoModels_robot 
+             ${CRM_COMMON_FILES}
+             ${CRM_ROBOSIMIAN_FILES}
+             ${CRM_CURIOSITY_FILES}
+diff --git a/src/chrono_models/vehicle/CMakeLists.txt b/src/chrono_models/vehicle/CMakeLists.txt
+index 961d32351..aa6d3efd6 100644
+--- a/src/chrono_models/vehicle/CMakeLists.txt
++++ b/src/chrono_models/vehicle/CMakeLists.txt
+@@ -629,7 +629,7 @@ source_group("kraz" FILES ${CVM_KRAZ_FILES})
+ set(CXX_FLAGS ${CH_CXX_FLAGS})
+ set(LIBRARIES ChronoEngine ChronoEngine_vehicle)
+ 
+-add_library(ChronoModels_vehicle SHARED
++add_library(ChronoModels_vehicle
+     ${CVM_COMMON_FILES}
+     ${CVM_HMMWV_FILES}
+     ${CVM_FEDA_FILES}
+diff --git a/src/chrono_multicore/CMakeLists.txt b/src/chrono_multicore/CMakeLists.txt
+index 11702bb4b..77d39fde2 100644
+--- a/src/chrono_multicore/CMakeLists.txt
++++ b/src/chrono_multicore/CMakeLists.txt
+@@ -395,7 +395,7 @@ ENDIF()
+ # ------------------------------------------------------------------------------
+ 
+ IF(USE_MULTICORE_CUDA)
+-    CUDA_ADD_LIBRARY(ChronoEngine_multicore SHARED
++    CUDA_ADD_LIBRARY(ChronoEngine_multicore 
+             ${ChronoEngine_Multicore_BASE}
+             ${ChronoEngine_Multicore_PHYSICS}
+             ${ChronoEngine_Multicore_CUDA}
+@@ -405,7 +405,7 @@ IF(USE_MULTICORE_CUDA)
+             ) 
+     SET(CHRONO_MULTICORE_LINKED_LIBRARIES ChronoEngine ${CUDA_FRAMEWORK} ${OPENMP_LIBRARIES} ${TBB_LIBRARIES})
+ ELSE()
+-    ADD_LIBRARY(ChronoEngine_multicore SHARED
++    ADD_LIBRARY(ChronoEngine_multicore 
+             ${ChronoEngine_Multicore_BASE}
+             ${ChronoEngine_Multicore_PHYSICS}
+             ${ChronoEngine_Multicore_COLLISION}
+diff --git a/src/chrono_mumps/CMakeLists.txt b/src/chrono_mumps/CMakeLists.txt
+index d8564600b..a3fa6ca93 100644
+--- a/src/chrono_mumps/CMakeLists.txt
++++ b/src/chrono_mumps/CMakeLists.txt
+@@ -158,7 +158,7 @@ source_group("" FILES ${ChronoEngine_MUMPS_HEADERS} ${ChronoEngine_MUMPS_SOURCES
+ 
+ add_definitions("-D_OPENMP_NOFORCE_MANIFEST")
+ 
+-add_library(ChronoEngine_mumps SHARED ${ChronoEngine_MUMPS_SOURCES} ${ChronoEngine_MUMPS_HEADERS})
++add_library(ChronoEngine_mumps ${ChronoEngine_MUMPS_SOURCES} ${ChronoEngine_MUMPS_HEADERS})
+ 
+ set_target_properties(ChronoEngine_mumps PROPERTIES
+                       COMPILE_FLAGS "${CH_CXX_FLAGS} ${CH_MUMPS_COMPILE_FLAGS}"
+diff --git a/src/chrono_opengl/CMakeLists.txt b/src/chrono_opengl/CMakeLists.txt
+index a7b60f13d..ac0a9f30f 100644
+--- a/src/chrono_opengl/CMakeLists.txt
++++ b/src/chrono_opengl/CMakeLists.txt
+@@ -262,7 +262,7 @@ SOURCE_GROUP("utils" FILES ${CE_OpenGL_STB_FILES} ${CE_OpenGL_TINYOBJLOADER_FILE
+ # Add the ChronoEngine_opengl library
+ # ------------------------------------------------------------------------------
+ 
+-ADD_LIBRARY(ChronoEngine_opengl SHARED 
++ADD_LIBRARY(ChronoEngine_opengl  
+   ${CE_OpenGL_BASE_FILES}
+   ${CE_OpenGL_CORE_FILES}
+   ${CE_OpenGL_SHAPES_FILES}
+diff --git a/src/chrono_pardisomkl/CMakeLists.txt b/src/chrono_pardisomkl/CMakeLists.txt
+index 8c35c5d70..51fea6d25 100644
+--- a/src/chrono_pardisomkl/CMakeLists.txt
++++ b/src/chrono_pardisomkl/CMakeLists.txt
+@@ -83,7 +83,7 @@ source_group("" FILES ${ChronoEngine_PardisoMKL_HEADERS} ${ChronoEngine_PardisoM
+ # Add the ChronoEngine_pardisomkl library
+ # ------------------------------------------------------------------------------
+ 
+-add_library(ChronoEngine_pardisomkl SHARED
++add_library(ChronoEngine_pardisomkl
+             ${ChronoEngine_PardisoMKL_SOURCES}
+             ${ChronoEngine_PardisoMKL_HEADERS})
+ 
+diff --git a/src/chrono_pardisoproject/CMakeLists.txt b/src/chrono_pardisoproject/CMakeLists.txt
+index 6aadd587a..b01a4fcd1 100644
+--- a/src/chrono_pardisoproject/CMakeLists.txt
++++ b/src/chrono_pardisoproject/CMakeLists.txt
+@@ -70,7 +70,7 @@ source_group("" FILES ${ChronoEngine_PARDISOPROJECT_HEADERS} ${ChronoEngine_PARD
+ # Add the ChronoEngine_pardisoproject library
+ # ------------------------------------------------------------------------------
+ 
+-add_library(ChronoEngine_pardisoproject SHARED
++add_library(ChronoEngine_pardisoproject 
+             ${ChronoEngine_PARDISOPROJECT_SOURCES}
+             ${ChronoEngine_PARDISOPROJECT_HEADERS})
+ 
+diff --git a/src/chrono_postprocess/CMakeLists.txt b/src/chrono_postprocess/CMakeLists.txt
+index 4c37790e7..f183b01d0 100644
+--- a/src/chrono_postprocess/CMakeLists.txt
++++ b/src/chrono_postprocess/CMakeLists.txt
+@@ -37,7 +37,7 @@ SOURCE_GROUP("" FILES
+ # The POSTPROCESS library is added to the project,
+ # and some custom properties of this target are set.
+ 
+-ADD_LIBRARY(ChronoEngine_postprocess SHARED 
++ADD_LIBRARY(ChronoEngine_postprocess 
+ 			${ChronoEngine_POSTPROCESS_SOURCES}
+ 			${ChronoEngine_POSTPROCESS_HEADERS})
+ 
+diff --git a/src/chrono_pyparser/CMakeLists.txt b/src/chrono_pyparser/CMakeLists.txt
+index f1065ac7c..d6760fa00 100644
+--- a/src/chrono_pyparser/CMakeLists.txt
++++ b/src/chrono_pyparser/CMakeLists.txt
+@@ -75,7 +75,7 @@ source_group(""  FILES  ${ChronoEngine_PYPARSER_SOURCES} ${ChronoEngine_PYPARSER
+ 
+ include_directories(${CH_PYTHONINC})
+ 
+-add_library(ChronoEngine_pyparser SHARED
++add_library(ChronoEngine_pyparser 
+             ${ChronoEngine_PYPARSER_SOURCES}
+             ${ChronoEngine_PYPARSER_HEADERS})
+ 
+diff --git a/src/chrono_sensor/CMakeLists.txt b/src/chrono_sensor/CMakeLists.txt
+index 2b4102d5b..a724c9f26 100644
+--- a/src/chrono_sensor/CMakeLists.txt
++++ b/src/chrono_sensor/CMakeLists.txt
+@@ -487,7 +487,7 @@ IF(USE_TENSOR_RT)
+     list(APPEND ALL_CH_SENSOR_FILES ${ChronoEngine_sensor_TENSORRT_HEADERS})
+ ENDIF()
+ 
+-cuda_add_library(ChronoEngine_sensor SHARED
++cuda_add_library(ChronoEngine_sensor 
+     ${ALL_CH_SENSOR_FILES}
+ )
+ 
+diff --git a/src/chrono_synchrono/CMakeLists.txt b/src/chrono_synchrono/CMakeLists.txt
+index 34eb7b7cb..6826ea4ae 100644
+--- a/src/chrono_synchrono/CMakeLists.txt
++++ b/src/chrono_synchrono/CMakeLists.txt
+@@ -246,7 +246,7 @@ set(SYN_CXX_FLAGS "${SYN_CXX_FLAGS}" PARENT_SCOPE)
+ include_directories("${CMAKE_SOURCE_DIR}/src/chrono_thirdparty/flatbuffers/include")
+ include_directories(${SYN_INCLUDES})
+ 
+-add_library(ChronoEngine_synchrono SHARED
++add_library(ChronoEngine_synchrono 
+ 	${SYN_BASE_FILES}
+ 	${SYN_CONTROLLER_FILES}
+     ${SYN_AGENT_FILES}
+diff --git a/src/chrono_vehicle/CMakeLists.txt b/src/chrono_vehicle/CMakeLists.txt
+index 69f56ab5b..5d52d5799 100644
+--- a/src/chrono_vehicle/CMakeLists.txt
++++ b/src/chrono_vehicle/CMakeLists.txt
+@@ -802,7 +802,7 @@ if(HAVE_OPENCRG)
+     list(APPEND LIBRARIES ${OPENCRG_LIBRARY})
+ endif()
+ 
+-add_library(ChronoEngine_vehicle SHARED
++add_library(ChronoEngine_vehicle 
+ #
+     ${CV_BASE_FILES}
+     ${CV_CHASSIS_FILES}
+@@ -874,7 +874,7 @@ list(APPEND LIBRARIES ChronoEngine_vehicle)
+ list(APPEND LIBRARIES ChronoEngine_irrlicht) 
+ include_directories(${CH_IRRLICHTINC})
+ 
+-add_library(ChronoEngine_vehicle_irrlicht SHARED
++add_library(ChronoEngine_vehicle_irrlicht 
+     ${CVIRR_DRIVER_FILES}
+     ${CVIRR_UTILS_FILES}
+     ${CVIRR_WV_TEST_RIG_FILES}
+diff --git a/src/chrono_vehicle/cosim/CMakeLists.txt b/src/chrono_vehicle/cosim/CMakeLists.txt
+index 0b305ebc3..ac1815f87 100644
+--- a/src/chrono_vehicle/cosim/CMakeLists.txt
++++ b/src/chrono_vehicle/cosim/CMakeLists.txt
+@@ -161,7 +161,7 @@ source_group("terrain" FILES ${CV_COSIM_TERRAIN_FILES})
+ 
+ message(STATUS "Add ChronoEngine_vehicle_cosim library")
+ 
+-add_library(ChronoEngine_vehicle_cosim SHARED
++add_library(ChronoEngine_vehicle_cosim 
+     ${CV_COSIM_FILES}
+     ${CV_COSIM_MBS_FILES}
+     ${CV_COSIM_TIRE_FILES}
