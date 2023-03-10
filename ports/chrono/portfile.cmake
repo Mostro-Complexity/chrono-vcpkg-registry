@@ -9,14 +9,28 @@ vcpkg_from_github(
     "disable-chpf-installing.patch"
     "change-vcpkg-install-option.patch"
     "use-global-shared_libs.patch"
+    "fix-cmake-submodule-error.patch"
 )
 
 string(COMPARE EQUAL "${VCPKG_LIBRARY_LINKAGE}" "dynamic" USE_SHARED_LIBS)
+
+vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
+  FEATURES
+    hdf             ENABLE_HDF5
+    postprocess     ENABLE_MODULE_POSTPROCESS
+    irrlicht        ENABLE_MODULE_IRRLICHT
+    vehicle         ENABLE_MODULE_VEHICLE
+    multicore       ENABLE_MODULE_MULTICORE
+    opengl          ENABLE_MODULE_OPENGL
+    synchrono       ENABLE_MODULE_SYNCHRONO
+    cosimulation    ENABLE_MODULE_COSIMULATION
+)
 
 vcpkg_cmake_configure(
   SOURCE_PATH "${SOURCE_PATH}"
   OPTIONS
     -DBUILD_SHARED_LIBS=${USE_SHARED_LIBS}
+    ${FEATURE_OPTIONS}
 )
 
 vcpkg_cmake_install()

@@ -1,0 +1,17 @@
+diff --git a/src/chrono_opengl/CMakeLists.txt b/src/chrono_opengl/CMakeLists.txt
+index ac0a9f30f..d13e7836d 100644
+--- a/src/chrono_opengl/CMakeLists.txt
++++ b/src/chrono_opengl/CMakeLists.txt
+@@ -42,9 +42,9 @@ endif()
+ cmake_policy(SET CMP0072 NEW)
+ 
+ find_package(OpenGL)
+-find_package(GLM)
+-find_package(GLEW)
+-find_package(GLFW)
++find_package(glm CONFIG REQUIRED)
++find_package(GLEW REQUIRED)
++find_package(glfw3 CONFIG REQUIRED)
+ 
+ # On windows, ask for the GLEW and GLFW DLLs so that we can copy. This is
+ # optional.  If not specified, it is the user's responsibility to make them

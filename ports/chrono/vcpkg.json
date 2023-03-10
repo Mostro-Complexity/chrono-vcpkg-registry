@@ -12,5 +12,53 @@
             "name": "vcpkg-cmake",
             "host": true
         }
-    ]
+    ],
+    "default-features": [
+        "hdf",
+        "postprocess",
+        "irrlicht",
+        "vehicle",
+        "multicore",
+        "opengl",
+        "synchrono",
+        "csharp",
+        "cosimulation"
+    ],
+    "features": {
+        "hdf": {
+            "description": ""
+        },
+        "postprocess": {
+            "description": ""
+        },
+        "python": {
+            "description": ""
+        },
+        "irrlicht": {
+            "description": ""
+        },
+        "vehicle": {
+            "description": ""
+        },
+        "multicore": {
+            "description": ""
+        },
+        "opengl": {
+            "description": "",
+            "dependencies": [
+                "glew",
+                "glfw3",
+                "glm"
+            ]
+        },
+        "synchrono": {
+            "description": ""
+        },
+        "csharp": {
+            "description": ""
+        },
+        "cosimulation": {
+            "description": ""
+        }
+    }
 }
