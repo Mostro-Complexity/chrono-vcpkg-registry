@@ -5,11 +5,7 @@ vcpkg_from_github(
   SHA512 f5e66c2171e62dd63bd1822f2ca17feaa18b3f2140a720ba7c2d1a730f0e7321fe5cbc0d2345903060ec0e9d1cc238e632550c57d565d9c28040812801b24a12
   HEAD_REF release/8.0
   PATCHES 
-    "use-current-cmake-dir.patch"
-    "disable-chpf-installing.patch"
-    "change-vcpkg-install-option.patch"
-    "use-global-shared_libs.patch"
-    "fix-cmake-submodule-error.patch"
+    "fix-cmake-errors.patch"
 )
 
 string(COMPARE EQUAL "${VCPKG_LIBRARY_LINKAGE}" "dynamic" USE_SHARED_LIBS)

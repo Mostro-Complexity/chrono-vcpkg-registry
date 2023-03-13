@@ -35,7 +35,10 @@
             "description": ""
         },
         "irrlicht": {
-            "description": ""
+            "description": "",
+            "dependencies": [
+                "irrlicht"
+            ]
         },
         "vehicle": {
             "description": ""
@@ -52,7 +55,13 @@
             ]
         },
         "synchrono": {
-            "description": ""
+            "description": "",
+            "dependencies": [
+                {
+                    "name": "flatbuffers",
+                    "version": "2.0.0"
+                }
+            ]
         },
         "csharp": {
             "description": ""
