@@ -37,10 +37,8 @@ file(
   RENAME copyright
 )
 
-file(
-  INSTALL "${CURRENT_PACKAGES_DIR}/cmake/ChronoConfig.cmake"
-  DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}"
-)
+file(GLOB TARGET_FILES "${CURRENT_PACKAGES_DIR}/cmake/*.cmake")
+file(INSTALL ${TARGET_FILES} DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}")
 
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/cmake")

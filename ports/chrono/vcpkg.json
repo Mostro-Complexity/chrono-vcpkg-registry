@@ -59,7 +59,7 @@
             "dependencies": [
                 {
                     "name": "flatbuffers",
-                    "version": "2.0.0"
+                    "version>=": "2.0.6"
                 }
             ]
         },
@@ -69,5 +69,11 @@
         "cosimulation": {
             "description": ""
         }
-    }
+    },
+    "overrides": [
+        {
+            "name": "flatbuffers",
+            "version": "2.0.0"
+        }
+    ]
 }
